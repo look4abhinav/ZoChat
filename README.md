@@ -32,7 +32,7 @@ agent or the database.
 ```
                 ┌─────────────┐
    customer ───▶│  classifier │──unrelated──▶ "I can only help with Zo support"
-    message    └──────┬──────┘
+    message     └──────┬──────┘
                             │ related
                             ▼
                       ┌───────────┐   12 SQLite tools
