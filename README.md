@@ -4,10 +4,10 @@ An AI support agent being built to replace Zo's older rule-based chat bot.
 The agent answers customer queries about orders, deliveries, payments, refunds,
 coupons and support tickets by querying a local SQLite database through a
 two-agent pipeline built on [pydantic-ai](https://ai.pydantic.dev/) and backed
-by the `minimax-m3` model served through the Opencode Go gateway.
+by the `deepseek-v4-flash` model served through the Opencode Go gateway.
 
 > Status: data layer + two-agent flow wired and tested. The default model
-> (`opencode-go/minimax-m3`) runs end-to-end once `OPENCODE_API_KEY` is provided.
+> (`opencode-go/deepseek-v4-flash`) runs end-to-end once `OPENCODE_API_KEY` is provided.
 
 ---
 
@@ -111,9 +111,9 @@ values, so CI and explicit `export` calls win.
 
 | Variable | Required | Description |
 |---|---|---|
-| `OPENCODE_API_KEY` | yes | API key for the Opencode Go provider (serves `minimax-m3`). |
+| `OPENCODE_API_KEY` | yes | API key for the Opencode Go provider (serves `deepseek-v4-flash`). |
 | `OPENCODE_BASE_URL` | no | OpenAI-compatible base URL. Falls back to `https://opencode.ai/zen/go/v1` when unset. |
-| `ZOCHAT_MODEL` | no | Override the pydantic-ai model string the CLI uses by default (e.g. `google-gla:gemini-2.0-flash`). When unset, the CLI defaults to `opencode-go/minimax-m3`. |
+| `ZOCHAT_MODEL` | no | Override the pydantic-ai model string the CLI uses by default (e.g. `google-gla:gemini-2.0-flash`). When unset, the CLI defaults to `opencode-go/deepseek-v4-flash`. |
 
 `.env` is git-ignored; copy `.env.example` to start. The default model is built
 lazily by `zochat.config.get_opencode_model()` only when `chat()` is called
@@ -191,7 +191,7 @@ ZOCHAT_MODEL=google-gla:gemini-2.0-flash uv run zochat
 ```
 
 If `--model` / `ZOCHAT_MODEL` are both unset the CLI falls back to the default
-Opencode Go `minimax-m3` model from `zochat.config`.
+Opencode Go `deepseek-v4-flash` model from `zochat.config`.
 
 ## Agent architecture
 
@@ -201,7 +201,7 @@ Each agent returns a typed pydantic model, parsed from the model's JSON
 output via pydantic-ai's [`PromptedOutput`](https://ai.pydantic.dev/output/)
 mode — the schema is injected into the system prompt and the model's free-text
 reply is parsed as JSON. This was chosen over the default tool-call output
-mode because it works with models (like `minimax-m3` via the Opencode Go
+mode because it works with models (like `deepseek-v4-flash` via the Opencode Go
 gateway) that do not reliably emit structured-output tool calls; without it the
 agent would exhaust its output-retries and raise
 `UnexpectedModelBehavior: Exceeded maximum output retries`. Both agents also
@@ -218,7 +218,7 @@ set `retries=3` for resilience.
 
 - `chat(question, *, conn=None, model=None) -> ChatReply` — convenience entry
   point. Builds fresh classifier + support agents and runs the flow. When
-  `model is None`, uses `get_opencode_model()` (the Opencode Go `minimax-m3`
+  `model is None`, uses `get_opencode_model()` (the Opencode Go `deepseek-v4-flash`
   default). When `conn is None`, opens (and closes) its own SQLite connection.
 - `run(classifier, support, question, *, conn=None) -> ChatReply` — testable
   core that accepts pre-built agents. Tests inject `TestModel`-backed agents

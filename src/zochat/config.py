@@ -1,7 +1,7 @@
 """Runtime configuration for ZoChat.
 
 Loads environment variables from a local ``.env`` file with python-dotenv and
-builds the default LLM model ``minimax-m3`` served by the OpenAI-compatible
+builds the default LLM model ``deepseek-v4-flash`` served by the OpenAI-compatible
 Opencode Go gateway.
 """
 
@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 if TYPE_CHECKING:
     from pydantic_ai.models.openai import OpenAIChatModel
 
-DEFAULT_MODEL_NAME = "minimax-m3"
+DEFAULT_MODEL_NAME = "deepseek-v4-flash"
 # OpenAI-compatible base URL for the Opencode Go gateway. Used only when
 # OPENCODE_BASE_URL is not otherwise configured. See .env.example.
 DEFAULT_OPENCODE_BASE_URL = "https://opencode.ai/zen/go/v1"

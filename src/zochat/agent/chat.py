@@ -94,7 +94,7 @@ async def chat(
             closed) automatically.
         model: A pydantic-ai model for both agents, e.g.
             ``"opencode:deepseek-v4-pro"``. If ``None``, the default
-            Opencode Go ``minimax-m3`` model (from
+            Opencode Go ``deepseek-v4-flash`` model (from
             :func:`zochat.config.get_opencode_model`) is used, with
             ``OPENCODE_API_KEY`` / ``OPENCODE_BASE_URL`` loaded from ``.env``.
         message_history: Prior pydantic-ai messages to continue the
@@ -106,6 +106,4 @@ async def chat(
         model = get_opencode_model()
     classifier = build_classifier_agent(model=model)
     support = build_support_agent(model=model)
-    return await run(
-        classifier, support, question, conn=conn, message_history=message_history
-    )
+    return await run(classifier, support, question, conn=conn, message_history=message_history)

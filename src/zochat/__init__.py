@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--model",
         default=os.environ.get("ZOCHAT_MODEL"),
-        help="pydantic-ai model; if omitted, defaults to opencode-go/minimax-m3 (or set ZOCHAT_MODEL to override)",
+        help="pydantic-ai model; if omitted, defaults to opencode-go/deepseek-v4-flash (or set ZOCHAT_MODEL to override)",
     )
     args = parser.parse_args(argv)
 
