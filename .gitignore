@@ -11,3 +11,7 @@ wheels/
 
 # Local environment files (secrets)
 .env
+
+# Generated database
+src/zochat/data/ZoDB.db
+*.db

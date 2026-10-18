@@ -1,14 +1,21 @@
+import sqlite3
+import tempfile
+from pathlib import Path
 
 import pytest
 from pydantic_ai.models.test import TestModel
 
 from zochat.agent.chat import chat_stream
-from zochat.db import connect
+from zochat.db.seed import build_database
 
 
 @pytest.mark.asyncio
 async def test_chat_stream_yields_final():
-    conn = connect()
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+        path = Path(tmp.name)
+    build_database(path, verbose=False)
+    conn = sqlite3.connect(path, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
     try:
         events = []
         async for ev in chat_stream(
@@ -18,7 +25,7 @@ async def test_chat_stream_yields_final():
         ):
             events.append(ev)
         assert any(e.kind == "final" for e in events)
-        # classifier event present
         assert any(e.kind == "classification" for e in events)
     finally:
         conn.close()
+        path.unlink(missing_ok=True)

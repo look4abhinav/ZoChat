@@ -360,6 +360,9 @@ def _apply(conn, action, target_id, payload, customer_id):
         order = _row(conn, "SELECT * FROM orders WHERE id = ?", (order_id,))
         if order is None:
             raise NotFoundError(f"order {order_id} not found")
+        existing = _row(conn, "SELECT * FROM coupon_redemptions WHERE order_id = ?", (order_id,))
+        if existing is not None:
+            raise ConflictError("a coupon has already been applied to this order")
         coupon = _row(conn, "SELECT * FROM coupons WHERE code = ?", (code,))
         if coupon is None or not coupon["is_active"]:
             raise NotFoundError(f"coupon {code} not found or inactive")

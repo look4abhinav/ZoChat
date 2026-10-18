@@ -114,11 +114,11 @@ class FileSessionStore:
         self._path(session_id).unlink(missing_ok=True)
 
 
-def support_deps(conn, session=None, request_id: str = ""):
+def support_deps(conn, session=None, request_id: str = "", metrics=None):
     """Convenience factory for :class:`SupportDeps`."""
     if session is None:
         session = SessionState()
-    return SupportDeps(conn=conn, session=session, request_id=request_id)
+    return SupportDeps(conn=conn, session=session, request_id=request_id, metrics=metrics)
 
 
 __all__ = [

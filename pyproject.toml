@@ -1,7 +1,7 @@
 [project]
 name = "zochat"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI support agent for a food-delivery service (ZoChat)"
 readme = "README.md"
 authors = [
     { name = "Abhinav Srivastava", email = "look4abhinav@outlook.in" }

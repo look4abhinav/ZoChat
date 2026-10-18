@@ -7,7 +7,7 @@ two-agent pipeline built on [pydantic-ai](https://ai.pydantic.dev/) and backed
 by the `qwen/qwen3.8-27b` model served through the Groq cloud API.
 
 > Status: data layer + two-agent flow wired and tested. The default model
-> (`groq/qwen/qwen3.8-27b`) runs end-to-end once `GROQ_API_KEY` is provided.
+> (`groq/qwen/qwen3.8-27b`) runs end-to-end once `GROQ_API_KEY` is provided. Uses Postgres when `DATABASE_URL` is set.
 
 ---
 
@@ -47,20 +47,26 @@ agent or the database.
 ```
 src/zochat/
 ├── __init__.py          # `zochat` CLI: one-shot question or interactive REPL
-├── config.py            # .env loader + default Opencode Go model builder
+├── config.py            # .env loader + default Groq model builder
+├── errors.py            # typed error hierarchy
+├── validation.py        # boundary validation (pydantic)
+├── observability.py     # request IDs, metrics, logging
+├── session.py           # session state + persistence
+├── repl.py              # REPL controller
 ├── agent/
 │   ├── __init__.py      # public exports for the agent layer
 │   ├── chat.py          # orchestrator: runs classifier → support (or decline)
 │   ├── classifier.py    # primary gatekeeper agent
-│   ├── support.py       # secondary support agent + 12 DB tools
-│   └── models.py        # pydantic output models (QuestionClassification, etc.)
+│   ├── support.py       # secondary support agent + DB tools
+│   └── models.py        # pydantic output models
 ├── db/
-│   ├── __init__.py      # connect() helper, path constants
-│   ├── schema.sql       # DDL for all 11 tables + indexes
-│   ├── seed.py          # (re)creates ZoDB.db and inserts dummy data
-│   └── queries.py       # customer-facing query functions (agent tools)
-└── data/
-    └── ZoDB.db          # generated SQLite database (84 rows of dummy data)
+│   ├── __init__.py      # connect() helper (Postgres or SQLite)
+│   ├── schema.sql       # DDL for SQLite
+│   ├── schema_pg.sql    # DDL for Postgres
+│   ├── seed.py          # (re)creates the database and inserts dummy data
+│   ├── queries.py       # customer-facing query functions (agent tools)
+│   └── mutations.py     # two-phase mutation helpers
+└── data/                # (SQLite file is git-ignored; auto-created)
 tests/
 ├── test_customer_queries.py  # unittest suite for the query functions (28 tests)
 └── test_agent.py             # unittest suite for the two-agent flow (8 tests)
@@ -113,6 +119,8 @@ values, so CI and explicit `export` calls win.
 |---|---|---|
 | `GROQ_API_KEY` | yes | API key for the Groq cloud provider (serves `qwen/qwen3.8-27b`). |
 | `GROQ_BASE_URL` | no | OpenAI-compatible base URL. Falls back to the Groq SDK default (`https://api.groq.com`) when unset. |
+| `DATABASE_URL` | no | Postgres connection string (Neon). When unset, falls back to local SQLite. |
+| `POSTGRES_DATABASE_URL` | no | Alias for `DATABASE_URL`. |
 | `ZOCHAT_MODEL` | no | Override the pydantic-ai model string the CLI uses by default (e.g. `google-gla:gemini-2.0-flash`). When unset, the CLI defaults to `groq:qwen/qwen3.8-27b`. |
 
 `.env` is git-ignored; copy `.env.example` to start. The default model is built
@@ -237,7 +245,7 @@ The test suite has two halves, both using the standard-library `unittest`
 framework (no extra test deps to install) and run via `pytest`:
 
 ```bash
-uv run pytest -q              # all 36 tests, quiet
+uv run pytest -q              # all 55 tests, quiet
 uv run pytest -v             # verbose (shows each question / case)
 uv run pytest tests/test_agent.py          # agent flow only
 uv run pytest tests/test_customer_queries.py  # query functions only

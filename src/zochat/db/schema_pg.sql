@@ -1,4 +1,4 @@
--- ZoChat - SQLite schema for the food-delivery support domain.
+-- ZoChat - Postgres schema for the food-delivery support domain.
 -- Tables cover customers, restaurants, menu, orders, payments, refunds,
 -- deliveries, support tickets and coupons -- the entities a support
 -- chatbot agent needs to answer queries about.
