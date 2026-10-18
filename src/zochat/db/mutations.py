@@ -27,6 +27,7 @@ def _locked(fn):
     def wrapper(*args, **kwargs):
         with _MUTATION_LOCK:
             return fn(*args, **kwargs)
+
     wrapper.__name__ = fn.__name__
     return wrapper
 
@@ -150,20 +151,31 @@ def propose_action(
     risk: str = "medium",
 ) -> ActionProposal:
     if customer_id is None:
-        raise AuthorizationError("customer must be identified before performing this action")
-    if action in ("cancel_order", "apply_coupon", "rate_order") and target_id is not None:
+        raise AuthorizationError(
+            "customer must be identified before performing this action"
+        )
+    if (
+        action in ("cancel_order", "apply_coupon", "rate_order")
+        and target_id is not None
+    ):
         row = _row(conn, "SELECT customer_id FROM orders WHERE id = ?", (target_id,))
         if row is None:
             raise NotFoundError(f"order {target_id} not found")
         if row["customer_id"] != customer_id:
             raise AuthorizationError("you do not own this order")
     if action == "resolve_ticket" and target_id is not None:
-        row = _row(conn, "SELECT customer_id FROM support_tickets WHERE id = ?", (target_id,))
+        row = _row(
+            conn, "SELECT customer_id FROM support_tickets WHERE id = ?", (target_id,)
+        )
         if row is None:
             raise NotFoundError(f"ticket {target_id} not found")
         if row["customer_id"] != customer_id:
             raise AuthorizationError("you do not own this ticket")
-    if action == "create_ticket" and payload.get("customer_id") is not None and payload["customer_id"] != customer_id:
+    if (
+        action == "create_ticket"
+        and payload.get("customer_id") is not None
+        and payload["customer_id"] != customer_id
+    ):
         raise AuthorizationError("customer mismatch")
     token = str(uuid.uuid4())
     now = _now()
@@ -222,7 +234,10 @@ def execute_action(conn, *, token, request_id=None) -> ActionResult:
     row = _row(conn, "SELECT * FROM pending_actions WHERE id = ?", (token,))
     if row is None:
         return ActionResult(
-            ok=False, action="unknown", target_id=None, status="expired",
+            ok=False,
+            action="unknown",
+            target_id=None,
+            status="expired",
             message="This confirmation has expired or is invalid.",
         )
     action = row["action"]
@@ -232,12 +247,18 @@ def execute_action(conn, *, token, request_id=None) -> ActionResult:
     expires_at = datetime.fromisoformat(row["expires_at"])
     if row["consumed_at"] is not None:
         return ActionResult(
-            ok=False, action=action, target_id=target_id, status="expired",
+            ok=False,
+            action=action,
+            target_id=target_id,
+            status="expired",
             message="This confirmation has already been used.",
         )
     if _now() > expires_at:
         return ActionResult(
-            ok=False, action=action, target_id=target_id, status="expired",
+            ok=False,
+            action=action,
+            target_id=target_id,
+            status="expired",
             message="This confirmation has expired. Please try again.",
         )
 
@@ -263,9 +284,14 @@ def execute_action(conn, *, token, request_id=None) -> ActionResult:
                 after=after,
             )
         return ActionResult(
-            ok=True, action=action, target_id=target_id, status="completed",
+            ok=True,
+            action=action,
+            target_id=target_id,
+            status="completed",
             message=f"{action} completed successfully.",
-            before=before, after=after, audit_id=audit_id,
+            before=before,
+            after=after,
+            audit_id=audit_id,
         )
     except Exception as exc:  # noqa: BLE001
         try:
@@ -285,8 +311,12 @@ def execute_action(conn, *, token, request_id=None) -> ActionResult:
         except Exception:  # noqa: BLE001
             conn.rollback()
         return ActionResult(
-            ok=False, action=action, target_id=target_id, status="failed",
-            message=str(exc), before=before,
+            ok=False,
+            action=action,
+            target_id=target_id,
+            status="failed",
+            message=str(exc),
+            before=before,
         )
 
 
@@ -309,8 +339,15 @@ def _apply(conn, action, target_id, payload, customer_id):
             conn.execute(
                 """INSERT INTO refunds (payment_id, order_id, amount, reason, status,
                    requested_at, processed_at) VALUES (?,?,?,?,?,?,?)""",
-                (pay["id"], order_id, pay["amount"],
-                 f"Order cancelled: {reason}", "initiated", _iso(_now()), None),
+                (
+                    pay["id"],
+                    order_id,
+                    pay["amount"],
+                    f"Order cancelled: {reason}",
+                    "initiated",
+                    _iso(_now()),
+                    None,
+                ),
             )
         after = _row(conn, "SELECT * FROM orders WHERE id = ?", (order_id,))
         return dict(after) if after else None
@@ -360,7 +397,9 @@ def _apply(conn, action, target_id, payload, customer_id):
         order = _row(conn, "SELECT * FROM orders WHERE id = ?", (order_id,))
         if order is None:
             raise NotFoundError(f"order {order_id} not found")
-        existing = _row(conn, "SELECT * FROM coupon_redemptions WHERE order_id = ?", (order_id,))
+        existing = _row(
+            conn, "SELECT * FROM coupon_redemptions WHERE order_id = ?", (order_id,)
+        )
         if existing is not None:
             raise ConflictError("a coupon has already been applied to this order")
         coupon = _row(conn, "SELECT * FROM coupons WHERE code = ?", (code,))
@@ -406,7 +445,9 @@ def _apply(conn, action, target_id, payload, customer_id):
     raise ValidationError(f"unknown action: {action}")
 
 
-def propose_cancel_order(conn, *, order_id, customer_id=None, reason=None, request_id=None):
+def propose_cancel_order(
+    conn, *, order_id, customer_id=None, reason=None, request_id=None
+):
     return propose_action(
         conn,
         customer_id=customer_id,
@@ -420,7 +461,16 @@ def propose_cancel_order(conn, *, order_id, customer_id=None, reason=None, reque
     )
 
 
-def propose_create_ticket(conn, *, customer_id=None, category="other", description="", order_id=None, priority="medium", request_id=None):
+def propose_create_ticket(
+    conn,
+    *,
+    customer_id=None,
+    category="other",
+    description="",
+    order_id=None,
+    priority="medium",
+    request_id=None,
+):
     return propose_action(
         conn,
         customer_id=customer_id,
@@ -440,7 +490,9 @@ def propose_create_ticket(conn, *, customer_id=None, category="other", descripti
     )
 
 
-def propose_resolve_ticket(conn, *, ticket_id, customer_id=None, resolution_note=None, request_id=None):
+def propose_resolve_ticket(
+    conn, *, ticket_id, customer_id=None, resolution_note=None, request_id=None
+):
     return propose_action(
         conn,
         customer_id=customer_id,

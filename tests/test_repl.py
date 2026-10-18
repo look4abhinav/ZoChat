@@ -9,8 +9,10 @@ class FakeChat:
 
     async def __call__(self, question, session):
         self.calls += 1
+
         class R:
             pass
+
         r = R()
         r.answer = f"reply to {question}"
         r.session = session
@@ -30,6 +32,7 @@ def test_repl_reset_and_history():
         assert ctrl.session.message_history == []
         await ctrl.handle("/session")
         await ctrl.handle("/last")
+
     asyncio.run(main())
 
 
@@ -38,4 +41,5 @@ def test_repl_quit():
         fc = FakeChat()
         ctrl = ReplController(chat_fn=fc, persist=False)
         assert await ctrl.handle("/quit") is False
+
     asyncio.run(main())

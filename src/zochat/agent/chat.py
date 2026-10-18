@@ -73,7 +73,9 @@ async def run(
     started = time.perf_counter()
     classification = None
     if session is None:
-        session = SessionState(message_history=list(message_history) if message_history else [])
+        session = SessionState(
+            message_history=list(message_history) if message_history else []
+        )
     elif message_history is not None and not session.message_history:
         session.message_history = list(message_history)
     try:
@@ -89,7 +91,9 @@ async def run(
                         answered=False,
                         answer=DECLINE_REPLY,
                         classification=classification,
-                        history=list(session.message_history) if session.message_history else (list(message_history) if message_history else None),
+                        history=list(session.message_history)
+                        if session.message_history
+                        else (list(message_history) if message_history else None),
                         request_id=rid,
                         latency_ms=(time.perf_counter() - started) * 1000.0,
                         error=None,
@@ -97,7 +101,9 @@ async def run(
                     )
 
                 t1 = time.perf_counter()
-                deps = SupportDeps(conn=conn, session=session, request_id=rid, metrics=metrics)
+                deps = SupportDeps(
+                    conn=conn, session=session, request_id=rid, metrics=metrics
+                )
                 result = await support.run(
                     question, deps=deps, message_history=session.message_history or None
                 )
@@ -111,8 +117,12 @@ async def run(
                 usage_dict = None
                 if usage is not None:
                     usage_dict = {
-                        "prompt_tokens": getattr(usage, "request_tokens", 0) or getattr(usage, "input_tokens", 0) or 0,
-                        "completion_tokens": getattr(usage, "response_tokens", 0) or getattr(usage, "output_tokens", 0) or 0,
+                        "prompt_tokens": getattr(usage, "request_tokens", 0)
+                        or getattr(usage, "input_tokens", 0)
+                        or 0,
+                        "completion_tokens": getattr(usage, "response_tokens", 0)
+                        or getattr(usage, "output_tokens", 0)
+                        or 0,
                         "total_tokens": getattr(usage, "total_tokens", 0) or 0,
                     }
                 session.message_history = result.all_messages()
@@ -142,7 +152,9 @@ async def run(
                     request_id=rid,
                     latency_ms=(time.perf_counter() - started) * 1000.0,
                     error=exc.to_info(),
-                    history=list(session.message_history) if session.message_history else None,
+                    history=list(session.message_history)
+                    if session.message_history
+                    else None,
                     session=session,
                 )
             except Exception as exc:  # noqa: BLE001
@@ -160,7 +172,9 @@ async def run(
                     request_id=rid,
                     latency_ms=(time.perf_counter() - started) * 1000.0,
                     error=err.to_info(),
-                    history=list(session.message_history) if session.message_history else None,
+                    history=list(session.message_history)
+                    if session.message_history
+                    else None,
                     session=session,
                 )
     finally:
@@ -200,8 +214,13 @@ async def chat(
     classifier = build_classifier_agent(model=model)
     support = build_support_agent(model=model)
     return await run(
-        classifier, support, question, conn=conn, message_history=message_history,
-        request_id=request_id, session=session,
+        classifier,
+        support,
+        question,
+        conn=conn,
+        message_history=message_history,
+        request_id=request_id,
+        session=session,
     )
 
 
@@ -231,7 +250,9 @@ async def chat_stream(
     rid = request_id or new_request_id()
     started = time.perf_counter()
     if session is None:
-        session = SessionState(message_history=list(message_history) if message_history else [])
+        session = SessionState(
+            message_history=list(message_history) if message_history else []
+        )
     elif message_history is not None and not session.message_history:
         session.message_history = list(message_history)
 
@@ -248,7 +269,9 @@ async def chat_stream(
                     answered=False,
                     answer=DECLINE_REPLY,
                     classification=classification,
-                    history=list(session.message_history) if session.message_history else None,
+                    history=list(session.message_history)
+                    if session.message_history
+                    else None,
                     request_id=rid,
                     latency_ms=(time.perf_counter() - started) * 1000.0,
                     session=session,
@@ -256,10 +279,17 @@ async def chat_stream(
                 yield ChatStreamEvent(kind="final", request_id=rid, reply=reply)
                 return
 
-            deps = SupportDeps(conn=conn, session=session, request_id=rid, metrics=RequestMetrics(request_id=rid))
+            deps = SupportDeps(
+                conn=conn,
+                session=session,
+                request_id=rid,
+                metrics=RequestMetrics(request_id=rid),
+            )
             hist = session.message_history or None
             try:
-                async with support.run_stream(question, deps=deps, message_history=hist) as result:
+                async with support.run_stream(
+                    question, deps=deps, message_history=hist
+                ) as result:
                     last = ""
                     async for partial in result.stream_output(debounce_by=0.05):
                         ans = getattr(partial, "answer", None)

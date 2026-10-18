@@ -12,9 +12,13 @@ if "ZOCHAT_RUN_EVALS" not in os.environ:
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="zochat-eval")
-    parser.add_argument("suite", choices=["classifier", "support"], nargs="?", default="classifier")
+    parser.add_argument(
+        "suite", choices=["classifier", "support"], nargs="?", default="classifier"
+    )
     args = parser.parse_args(argv)
-    print(f"Eval suite '{args.suite}' is a skeleton; implement case loading in evals/tasks.py")
+    print(
+        f"Eval suite '{args.suite}' is a skeleton; implement case loading in evals/tasks.py"
+    )
     return 0
 
 

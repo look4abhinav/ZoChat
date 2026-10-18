@@ -17,11 +17,13 @@ def test_coupon_code_pattern():
     with pytest.raises(PydanticValidationError):
         # invalid lowercase
         from pydantic import TypeAdapter
+
         TypeAdapter(CouponCode).validate_python("welcome")
 
 
 def test_validate_or_raise_raises_zochat_error():
     class M(ChatRequest):
         pass
+
     with pytest.raises(ValidationError):
         validate_or_raise({"question": ""}, M)

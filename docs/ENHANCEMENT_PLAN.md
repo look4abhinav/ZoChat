@@ -44,20 +44,37 @@ differently to validation, transient, authorization and not-found failures.
 
 ```python
 class ZoChatError(Exception):
-    code: str               # e.g. "order.not_found"
+    code: str  # e.g. "order.not_found"
     retryable: bool
-    user_message: str       # safe to show to customers
+    user_message: str  # safe to show to customers
     details: dict[str, Any]
 
-class ConfigurationError(ZoChatError): ...   # missing key, bad model string
-class DatabaseError(ZoChatError): ...        # sqlite failure, integrity error
-class ValidationError(ZoChatError): ...      # boundary input rejected
-class NotFoundError(ZoChatError): ...        # no matching row
-class AuthorizationError(ZoChatError): ...   # customer does not own resource
-class ConflictError(ZoChatError): ...        # e.g. coupon already applied
-class RateLimitError(ZoChatError): ...       # model provider 429
+
+class ConfigurationError(ZoChatError): ...  # missing key, bad model string
+
+
+class DatabaseError(ZoChatError): ...  # sqlite failure, integrity error
+
+
+class ValidationError(ZoChatError): ...  # boundary input rejected
+
+
+class NotFoundError(ZoChatError): ...  # no matching row
+
+
+class AuthorizationError(ZoChatError): ...  # customer does not own resource
+
+
+class ConflictError(ZoChatError): ...  # e.g. coupon already applied
+
+
+class RateLimitError(ZoChatError): ...  # model provider 429
+
+
 class TransientModelError(ZoChatError): ...  # timeout / 5xx
-class ConfirmationRequired(ZoChatError): ... # mutation needs explicit consent
+
+
+class ConfirmationRequired(ZoChatError): ...  # mutation needs explicit consent
 ```
 
 **Interfaces.**
@@ -101,9 +118,18 @@ class ChatRequest(BaseModel):
     customer_id: int | None = None
     session_id: str | None = None
 
+
 class CreateTicketRequest(BaseModel): ...
-class ApplyCouponRequest(BaseModel): order_id: int; code: CouponCode
-class RateOrderRequest(BaseModel): order_id: int; rating: Rating
+
+
+class ApplyCouponRequest(BaseModel):
+    order_id: int
+    code: CouponCode
+
+
+class RateOrderRequest(BaseModel):
+    order_id: int
+    rating: Rating
 ```
 
 **Scope.**
@@ -127,20 +153,27 @@ latency and token usage, and mutation audit records.
 **New file:** `src/zochat/observability.py`
 
 ```python
-request_id_var: ContextVar[str]          # propagated to logs + DB audit
+request_id_var: ContextVar[str]  # propagated to logs + DB audit
+
+
 @dataclass
 class RequestMetrics:
     request_id: str
     started_at: datetime
     classifier_ms: float | None
     support_ms: float | None
-    tool_calls: list[ToolCallRecord]     # name, args_hash, ms, ok
+    tool_calls: list[ToolCallRecord]  # name, args_hash, ms, ok
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
     error_code: str | None
 
-class ToolCallRecord(BaseModel): name: str; duration_ms: float; ok: bool; args_summary: str
+
+class ToolCallRecord(BaseModel):
+    name: str
+    duration_ms: float
+    ok: bool
+    args_summary: str
 ```
 
 **Interfaces.**
@@ -396,6 +429,7 @@ class SessionState(BaseModel):
     updated_at: datetime
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
 @dataclass
 class SupportDeps:
     conn: sqlite3.Connection
@@ -403,12 +437,14 @@ class SupportDeps:
     request_id: str
     metrics: RequestMetrics
 
+
 class SessionStore(Protocol):
     def load(self, session_id: str | None = None) -> SessionState | None: ...
     def save(self, session: SessionState) -> None: ...
     def delete(self, session_id: str) -> None: ...
 
-class FileSessionStore(SessionStore): ...   # ~/.zochat/sessions/<id>.json
+
+class FileSessionStore(SessionStore): ...  # ~/.zochat/sessions/<id>.json
 ```
 
 `chat()` / `run()` signatures:
@@ -543,17 +579,20 @@ of a single block after the full run.
 ```python
 @dataclass
 class ChatStreamEvent:
-    kind: Literal["classification", "tool_call", "tool_result",
-                  "answer_delta", "final", "error"]
+    kind: Literal[
+        "classification", "tool_call", "tool_result", "answer_delta", "final", "error"
+    ]
     request_id: str
-    text: str | None = None          # for answer_delta / error
+    text: str | None = None  # for answer_delta / error
     classification: QuestionClassification | None = None
     tool_name: str | None = None
     tool_args: dict[str, Any] | None = None
-    reply: ChatReply | None = None    # only on "final"
+    reply: ChatReply | None = None  # only on "final"
 
-async def chat_stream(question, *, conn=None, model=None, session=None,
-                      request_id=None) -> AsyncIterator[ChatStreamEvent]: ...
+
+async def chat_stream(
+    question, *, conn=None, model=None, session=None, request_id=None
+) -> AsyncIterator[ChatStreamEvent]: ...
 ```
 
 Flow:

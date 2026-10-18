@@ -21,7 +21,9 @@ async def test_chat_stream_yields_final():
         async for ev in chat_stream(
             "Will it rain tomorrow?",
             conn=conn,
-            model=TestModel(custom_output_text='{"is_related": false, "category": null, "reasoning": "weather"}'),
+            model=TestModel(
+                custom_output_text='{"is_related": false, "category": null, "reasoning": "weather"}'
+            ),
         ):
             events.append(ev)
         assert any(e.kind == "final" for e in events)

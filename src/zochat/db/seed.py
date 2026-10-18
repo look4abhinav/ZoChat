@@ -541,7 +541,9 @@ def build_database(db_path=None, verbose: bool = True) -> None:
         load_dotenv()
         url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_DATABASE_URL")
         if not url:
-            raise RuntimeError("DATABASE_URL is required to build the Postgres database")
+            raise RuntimeError(
+                "DATABASE_URL is required to build the Postgres database"
+            )
         import psycopg
         from psycopg.rows import dict_row
 
@@ -551,10 +553,20 @@ def build_database(db_path=None, verbose: bool = True) -> None:
         conn = PostgresConnection(raw)
         # Drop existing tables for a clean rebuild.
         for tbl in (
-            "coupon_redemptions", "action_audit_log", "pending_actions",
-            "order_items", "payments", "refunds", "deliveries", "orders",
-            "support_tickets", "menu_items", "coupons", "restaurants",
-            "delivery_partners", "customers",
+            "coupon_redemptions",
+            "action_audit_log",
+            "pending_actions",
+            "order_items",
+            "payments",
+            "refunds",
+            "deliveries",
+            "orders",
+            "support_tickets",
+            "menu_items",
+            "coupons",
+            "restaurants",
+            "delivery_partners",
+            "customers",
         ):
             conn.execute(f"DROP TABLE IF EXISTS {tbl} CASCADE")
         conn.commit()
@@ -564,9 +576,19 @@ def build_database(db_path=None, verbose: bool = True) -> None:
         conn.commit()
         # Advance serial sequences past seeded explicit ids.
         for tbl in (
-            "customers", "restaurants", "menu_items", "delivery_partners",
-            "orders", "order_items", "payments", "refunds", "deliveries",
-            "support_tickets", "coupons", "pending_actions", "action_audit_log",
+            "customers",
+            "restaurants",
+            "menu_items",
+            "delivery_partners",
+            "orders",
+            "order_items",
+            "payments",
+            "refunds",
+            "deliveries",
+            "support_tickets",
+            "coupons",
+            "pending_actions",
+            "action_audit_log",
             "coupon_redemptions",
         ):
             try:

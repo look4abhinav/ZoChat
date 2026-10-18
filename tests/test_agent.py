@@ -71,7 +71,9 @@ async def test_classifier_returns_related() -> None:
     """A support question is classified as related with a category."""
     clf = build_classifier_agent(
         model=TestModel(
-            custom_output_text=('{"is_related": true, "category": "order", "reasoning": "asks about an order"}')
+            custom_output_text=(
+                '{"is_related": true, "category": "order", "reasoning": "asks about an order"}'
+            )
         )
     )
     out = (await clf.run("Where is my order 1?")).output
@@ -84,7 +86,11 @@ async def test_classifier_returns_related() -> None:
 async def test_classifier_returns_unrelated() -> None:
     """An off-topic question is classified as unrelated with no category."""
     clf = build_classifier_agent(
-        model=TestModel(custom_output_text=('{"is_related": false, "category": null, "reasoning": "weather question"}'))
+        model=TestModel(
+            custom_output_text=(
+                '{"is_related": false, "category": null, "reasoning": "weather question"}'
+            )
+        )
     )
     out = (await clf.run("Will it rain tomorrow?")).output
     assert not out.is_related
@@ -105,7 +111,9 @@ def test_support_agent_exposes_all_db_tools() -> None:
 async def test_support_agent_runs_all_tools_against_db(conn) -> None:
     """TestModel calls every tool; all must return JSON-serialisable data."""
     support = build_support_agent(
-        model=TestModel(custom_output_text=('{"answer": "Here is your order.", "data_found": true}'))
+        model=TestModel(
+            custom_output_text=('{"answer": "Here is your order.", "data_found": true}')
+        )
     )
     result = await support.run("Where is my order 1?", deps=support_deps(conn))
     assert isinstance(result.output, SupportAnswer)
@@ -121,7 +129,9 @@ async def test_run_related_invokes_support_agent(conn) -> None:
     """A related question is handed to the support agent and answered."""
     clf = build_classifier_agent(
         model=TestModel(
-            custom_output_text=('{"is_related": true, "category": "refund", "reasoning": "asks about a refund"}')
+            custom_output_text=(
+                '{"is_related": true, "category": "refund", "reasoning": "asks about a refund"}'
+            )
         )
     )
     sup_model = TestModel(
@@ -145,10 +155,14 @@ async def test_run_unrelated_declines_without_support(conn) -> None:
     """An unrelated question is declined and the support agent is never run."""
     clf = build_classifier_agent(
         model=TestModel(
-            custom_output_text=('{"is_related": false, "category": null, "reasoning": "general knowledge question"}')
+            custom_output_text=(
+                '{"is_related": false, "category": null, "reasoning": "general knowledge question"}'
+            )
         )
     )
-    sup_model = TestModel(custom_output_text=('{"answer": "should never be used", "data_found": true}'))
+    sup_model = TestModel(
+        custom_output_text=('{"answer": "should never be used", "data_found": true}')
+    )
     support = build_support_agent(model=sup_model)
 
     reply = await run(clf, support, "Who won the football match?", conn=conn)
@@ -172,7 +186,11 @@ async def test_chat_opens_and_closes_its_own_connection(conn, monkeypatch) -> No
 
     reply = await chat(
         "Tell me a joke",
-        model=TestModel(custom_output_text=('{"is_related": false, "category": null, "reasoning": "off-topic"}')),
+        model=TestModel(
+            custom_output_text=(
+                '{"is_related": false, "category": null, "reasoning": "off-topic"}'
+            )
+        ),
     )
     assert not reply.answered
 
@@ -186,7 +204,11 @@ async def test_chat_with_explicit_conn_leaves_it_open(conn) -> None:
     reply = await chat(
         "Where is my order?",
         conn=conn,
-        model=TestModel(custom_output_text=('{"is_related": false, "category": null, "reasoning": "unrelated"}')),
+        model=TestModel(
+            custom_output_text=(
+                '{"is_related": false, "category": null, "reasoning": "unrelated"}'
+            )
+        ),
     )
     assert not reply.answered
     conn.execute("SELECT 1")  # still open

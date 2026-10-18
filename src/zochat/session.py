@@ -103,6 +103,7 @@ class FileSessionStore:
     def save(self, session: SessionState) -> None:
         session.touch()
         import os
+
         if os.environ.get("ZOCHAT_PERSIST_PII") != "1":
             session = session.model_copy(update={"phone": None})
         path = self._path(session.session_id)
@@ -118,7 +119,9 @@ def support_deps(conn, session=None, request_id: str = "", metrics=None):
     """Convenience factory for :class:`SupportDeps`."""
     if session is None:
         session = SessionState()
-    return SupportDeps(conn=conn, session=session, request_id=request_id, metrics=metrics)
+    return SupportDeps(
+        conn=conn, session=session, request_id=request_id, metrics=metrics
+    )
 
 
 __all__ = [

@@ -199,9 +199,10 @@ def build_support_agent(
             return {"error": "db.error", "message": str(exc)}
         return {"can_cancel": can_cancel, "reason": reason}
 
-
     @agent.tool
-    def order_overview(ctx: RunContext[SupportDeps], order_id: int) -> dict[str, Any] | None:
+    def order_overview(
+        ctx: RunContext[SupportDeps], order_id: int
+    ) -> dict[str, Any] | None:
         """Composite overview of an order: header, items, payment, refunds, delivery."""
         try:
             return queries.order_overview(ctx.deps.conn, order_id)
@@ -235,14 +236,18 @@ def build_support_agent(
         """Propose cancelling an order (preview only; requires execute_pending_action)."""
         try:
             p = mutations.propose_cancel_order(
-                ctx.deps.conn, order_id=order_id,
-                customer_id=ctx.deps.session.customer_id, reason=reason,
+                ctx.deps.conn,
+                order_id=order_id,
+                customer_id=ctx.deps.session.customer_id,
+                reason=reason,
                 request_id=ctx.deps.request_id,
             )
         except ZoChatError as exc:
             return {"error": exc.code, "message": exc.user_message}
         return {
-            "token": p.token, "summary": p.summary, "risk": p.risk,
+            "token": p.token,
+            "summary": p.summary,
+            "risk": p.risk,
             "expires_at": p.expires_at.isoformat(),
         }
 
@@ -257,14 +262,20 @@ def build_support_agent(
         """Propose creating a support ticket (preview only)."""
         try:
             p = mutations.propose_create_ticket(
-                ctx.deps.conn, customer_id=ctx.deps.session.customer_id,
-                category=category, description=description, order_id=order_id,
-                priority=priority, request_id=ctx.deps.request_id,
+                ctx.deps.conn,
+                customer_id=ctx.deps.session.customer_id,
+                category=category,
+                description=description,
+                order_id=order_id,
+                priority=priority,
+                request_id=ctx.deps.request_id,
             )
         except ZoChatError as exc:
             return {"error": exc.code, "message": exc.user_message}
         return {
-            "token": p.token, "summary": p.summary, "risk": p.risk,
+            "token": p.token,
+            "summary": p.summary,
+            "risk": p.risk,
             "expires_at": p.expires_at.isoformat(),
         }
 
@@ -275,14 +286,18 @@ def build_support_agent(
         """Propose resolving a support ticket (preview only)."""
         try:
             p = mutations.propose_resolve_ticket(
-                ctx.deps.conn, ticket_id=ticket_id,
+                ctx.deps.conn,
+                ticket_id=ticket_id,
                 customer_id=ctx.deps.session.customer_id,
-                resolution_note=resolution_note, request_id=ctx.deps.request_id,
+                resolution_note=resolution_note,
+                request_id=ctx.deps.request_id,
             )
         except ZoChatError as exc:
             return {"error": exc.code, "message": exc.user_message}
         return {
-            "token": p.token, "summary": p.summary, "risk": p.risk,
+            "token": p.token,
+            "summary": p.summary,
+            "risk": p.risk,
             "expires_at": p.expires_at.isoformat(),
         }
 
@@ -293,14 +308,18 @@ def build_support_agent(
         """Propose applying a coupon to an order (preview only)."""
         try:
             p = mutations.propose_apply_coupon(
-                ctx.deps.conn, order_id=order_id, code=coupon_code,
+                ctx.deps.conn,
+                order_id=order_id,
+                code=coupon_code,
                 customer_id=ctx.deps.session.customer_id,
                 request_id=ctx.deps.request_id,
             )
         except ZoChatError as exc:
             return {"error": exc.code, "message": exc.user_message}
         return {
-            "token": p.token, "summary": p.summary, "risk": p.risk,
+            "token": p.token,
+            "summary": p.summary,
+            "risk": p.risk,
             "expires_at": p.expires_at.isoformat(),
         }
 
@@ -311,31 +330,44 @@ def build_support_agent(
         """Propose rating an order (preview only)."""
         try:
             p = mutations.propose_rate_order(
-                ctx.deps.conn, order_id=order_id, rating=rating,
+                ctx.deps.conn,
+                order_id=order_id,
+                rating=rating,
                 customer_id=ctx.deps.session.customer_id,
                 request_id=ctx.deps.request_id,
             )
         except ZoChatError as exc:
             return {"error": exc.code, "message": exc.user_message}
         return {
-            "token": p.token, "summary": p.summary, "risk": p.risk,
+            "token": p.token,
+            "summary": p.summary,
+            "risk": p.risk,
             "expires_at": p.expires_at.isoformat(),
         }
 
     @agent.tool
-    def execute_pending_action(ctx: RunContext[SupportDeps], token: str) -> dict[str, Any]:
+    def execute_pending_action(
+        ctx: RunContext[SupportDeps], token: str
+    ) -> dict[str, Any]:
         """Execute a previously proposed action using its confirmation token."""
         try:
-            r = mutations.execute_action(ctx.deps.conn, token=token, request_id=ctx.deps.request_id)
+            r = mutations.execute_action(
+                ctx.deps.conn, token=token, request_id=ctx.deps.request_id
+            )
         except ZoChatError as exc:
             return {"error": exc.code, "message": exc.user_message}
         return {
-            "ok": r.ok, "action": r.action, "status": r.status,
-            "message": r.message, "target_id": r.target_id,
+            "ok": r.ok,
+            "action": r.action,
+            "status": r.status,
+            "message": r.message,
+            "target_id": r.target_id,
         }
 
     @agent.tool
-    def cancel_pending_action(ctx: RunContext[SupportDeps], token: str) -> dict[str, Any]:
+    def cancel_pending_action(
+        ctx: RunContext[SupportDeps], token: str
+    ) -> dict[str, Any]:
         """Cancel/reject a previously proposed action."""
         ok = mutations.cancel_pending_action(ctx.deps.conn, token)
         return {"cancelled": ok}

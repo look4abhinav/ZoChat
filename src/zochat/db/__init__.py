@@ -70,10 +70,12 @@ def connect() -> Any:
             raise RuntimeError("psycopg is required for Postgres support") from exc
         raw = psycopg.connect(url, row_factory=dict_row)
         conn = PostgresConnection(raw)
-        cur = conn.execute(
-            "SELECT to_regclass('public.customers')"
-        ).fetchone()
-        exists = cur is not None and (next(iter(cur.values())) if isinstance(cur, dict) else cur[0]) is not None
+        cur = conn.execute("SELECT to_regclass('public.customers')").fetchone()
+        exists = (
+            cur is not None
+            and (next(iter(cur.values())) if isinstance(cur, dict) else cur[0])
+            is not None
+        )
         if not exists:
             raw.close()
             from zochat.db.seed import build_database

@@ -228,10 +228,11 @@ def can_cancel_order(conn: sqlite3.Connection, order_id: int) -> tuple[bool, str
     return (False, f"order is already {status} and cannot be cancelled")
 
 
-
 def order_overview(conn: sqlite3.Connection, order_id: int) -> dict[str, Any] | None:
     """Composite: order header + items + payment + refunds + delivery in one call."""
-    order = _row_to_dict(conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone())
+    order = _row_to_dict(
+        conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    )
     if order is None:
         return None
     items = order_items_detail(conn, order_id)
@@ -247,7 +248,9 @@ def order_overview(conn: sqlite3.Connection, order_id: int) -> dict[str, Any] | 
     }
 
 
-def customer_overview(conn: sqlite3.Connection, customer_id: int, order_limit: int = 5) -> dict[str, Any] | None:
+def customer_overview(
+    conn: sqlite3.Connection, customer_id: int, order_limit: int = 5
+) -> dict[str, Any] | None:
     """Composite: profile + recent orders + open tickets in one call."""
     profile = customer_profile(conn, customer_id)
     if profile is None:
@@ -262,9 +265,7 @@ def validate_coupon(
 ) -> dict[str, Any]:
     """Validate a coupon against a cart total and compute the discount."""
     now = now or datetime.now().isoformat(sep=" ")
-    row = conn.execute(
-        "SELECT * FROM coupons WHERE code = ?", (code,)
-    ).fetchone()
+    row = conn.execute("SELECT * FROM coupons WHERE code = ?", (code,)).fetchone()
     if row is None:
         return {"valid": False, "code": code, "reason": "coupon not found"}
     c = dict(row)
@@ -274,7 +275,8 @@ def validate_coupon(
         return {"valid": False, "code": code, "reason": "coupon has expired"}
     if cart_total < c["min_order_value"]:
         return {
-            "valid": False, "code": code,
+            "valid": False,
+            "code": code,
             "reason": f"cart total below minimum of {c['min_order_value']}",
         }
     if c["discount_type"] == "percentage":
@@ -294,6 +296,7 @@ def validate_coupon(
         "final_total": final,
         "reason": None,
     }
+
 
 __all__ = [
     "active_coupons",

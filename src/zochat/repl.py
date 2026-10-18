@@ -57,6 +57,7 @@ class ReplController:
         self._print(answer)
         if self.persist and self.store is not None:
             import contextlib
+
             with contextlib.suppress(Exception):
                 self.store.save(self.session)
 
@@ -69,6 +70,7 @@ class ReplController:
             self.running = False
             if self.persist and self.store is not None:
                 import contextlib
+
                 with contextlib.suppress(Exception):
                     self.store.save(self.session)
             return False
@@ -131,7 +133,9 @@ class ReplController:
                     self.session.customer_id = int(ident)
                 except ValueError:
                     self.session.phone = ident
-                    self._print(f"Identity set to phone {ident} (resolved on next query).")
+                    self._print(
+                        f"Identity set to phone {ident} (resolved on next query)."
+                    )
             return True
 
         self._print(f"Unknown command: {cmd}")

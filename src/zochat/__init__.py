@@ -43,7 +43,9 @@ def main(argv: list[str] | None = None) -> int:
         help="pydantic-ai model; if omitted, defaults to groq/qwen/qwen3.8-27b (or set ZOCHAT_MODEL to override)",
     )
     parser.add_argument("--session", default=None, help="session id or path")
-    parser.add_argument("--no-persist", action="store_true", help="disable session persistence")
+    parser.add_argument(
+        "--no-persist", action="store_true", help="disable session persistence"
+    )
     parser.add_argument("--resume", default=None, help="resume a session id")
     args = parser.parse_args(argv)
 
@@ -86,7 +88,10 @@ def main(argv: list[str] | None = None) -> int:
         return reply
 
     controller = ReplController(
-        chat_fn=chat_fn, session=session, store=store, console=console,
+        chat_fn=chat_fn,
+        session=session,
+        store=store,
+        console=console,
         persist=not args.no_persist,
     )
 
@@ -105,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     while controller.running:
         try:
             question = Prompt.ask("[bold magenta]You[/bold magenta]")
-        except (EOFError, KeyboardInterrupt):
+        except EOFError, KeyboardInterrupt:
             console.print("\n[dim]Goodbye![/dim]")
             return 0
         try:

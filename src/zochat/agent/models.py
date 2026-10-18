@@ -122,16 +122,18 @@ class ChatReply(BaseModel):
     )
 
 
-
 @dataclass
 class ChatStreamEvent:
-    kind: Literal["classification", "tool_call", "tool_result", "answer_delta", "final", "error"]
+    kind: Literal[
+        "classification", "tool_call", "tool_result", "answer_delta", "final", "error"
+    ]
     request_id: str
     text: str | None = None
     classification: QuestionClassification | None = None
     tool_name: str | None = None
     tool_args: dict[str, Any] | None = None
     reply: ChatReply | None = None
+
 
 # Resolve forward references now that `zochat.errors` is importable.
 from zochat.errors import ErrorInfo
