@@ -12,19 +12,30 @@ from zochat.agent.classifier import build_classifier_agent
 from zochat.agent.models import ChatReply, QuestionClassification, SupportAnswer
 from zochat.agent.support import build_support_agent
 from zochat.db.seed import build_database
+from zochat.session import support_deps
 
 EXPECTED_TOOLS = {
     "active_coupons",
     "can_cancel_order",
+    "cancel_pending_action",
+    "customer_overview",
     "customer_profile",
+    "execute_pending_action",
     "find_customer_by_phone",
     "menu_for_restaurant",
     "my_support_tickets",
     "order_items_detail",
+    "order_overview",
     "payment_status",
+    "propose_apply_coupon",
+    "propose_cancel_order",
+    "propose_create_ticket",
+    "propose_rate_order",
+    "propose_resolve_ticket",
     "recent_orders",
     "refund_status",
     "restaurants_in_city",
+    "validate_coupon",
     "where_is_my_order",
 }
 
@@ -96,7 +107,7 @@ async def test_support_agent_runs_all_tools_against_db(conn) -> None:
     support = build_support_agent(
         model=TestModel(custom_output_text=('{"answer": "Here is your order.", "data_found": true}'))
     )
-    result = await support.run("Where is my order 1?", deps=conn)
+    result = await support.run("Where is my order 1?", deps=support_deps(conn))
     assert isinstance(result.output, SupportAnswer)
     assert result.output.answer == "Here is your order."
     assert result.output.data_found

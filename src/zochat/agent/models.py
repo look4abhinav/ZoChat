@@ -8,7 +8,13 @@ answer is always a well-formed object.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from zochat.errors import ErrorInfo
+
+from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -79,6 +85,31 @@ class ChatReply(BaseModel):
     classification: QuestionClassification = Field(
         description="The classification produced by the primary agent.",
     )
+    request_id: str | None = Field(
+        default=None,
+        description="Request id for tracing; None if not assigned.",
+    )
+    latency_ms: float | None = Field(
+        default=None,
+        description="End-to-end latency in milliseconds.",
+    )
+    error: ErrorInfo | None = Field(
+        default=None,
+        description="Structured error when the request failed; None on success.",
+    )
+    usage: dict[str, int] | None = Field(
+        default=None,
+        description="Token usage summary when available.",
+    )
+    tool_calls: list[Any] | None = Field(
+        default=None,
+        description="Tool calls made by the support agent.",
+    )
+    session: Any | None = Field(
+        default=None,
+        exclude=True,
+        description="Updated session state for this turn (excluded from serialization).",
+    )
     history: list[Any] | None = Field(
         default=None,
         exclude=True,
@@ -89,3 +120,20 @@ class ChatReply(BaseModel):
             "from serialization."
         ),
     )
+
+
+
+@dataclass
+class ChatStreamEvent:
+    kind: Literal["classification", "tool_call", "tool_result", "answer_delta", "final", "error"]
+    request_id: str
+    text: str | None = None
+    classification: QuestionClassification | None = None
+    tool_name: str | None = None
+    tool_args: dict[str, Any] | None = None
+    reply: ChatReply | None = None
+
+# Resolve forward references now that `zochat.errors` is importable.
+from zochat.errors import ErrorInfo
+
+ChatReply.model_rebuild()

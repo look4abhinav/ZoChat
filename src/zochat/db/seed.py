@@ -18,6 +18,7 @@ from pathlib import Path
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "ZoDB.db"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
+SCHEMA_PG_PATH = Path(__file__).resolve().parent / "schema_pg.sql"
 
 # Fixed "now" makes the seeded dataset deterministic across runs.
 BASE_TS = datetime(2026, 7, 21, 12, 0, 0)
@@ -531,7 +532,60 @@ COUPONS = [
 # ---------------------------------------------------------------------------
 
 
-def build_database(db_path: Path = DEFAULT_DB_PATH, verbose: bool = True) -> None:
+def build_database(db_path=None, verbose: bool = True) -> None:
+    if db_path is None:
+        import os
+
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_DATABASE_URL")
+        if not url:
+            raise RuntimeError("DATABASE_URL is required to build the Postgres database")
+        import psycopg
+        from psycopg.rows import dict_row
+
+        from zochat.db import PostgresConnection
+
+        raw = psycopg.connect(url, row_factory=dict_row)
+        conn = PostgresConnection(raw)
+        # Drop existing tables for a clean rebuild.
+        for tbl in (
+            "coupon_redemptions", "action_audit_log", "pending_actions",
+            "order_items", "payments", "refunds", "deliveries", "orders",
+            "support_tickets", "menu_items", "coupons", "restaurants",
+            "delivery_partners", "customers",
+        ):
+            conn.execute(f"DROP TABLE IF EXISTS {tbl} CASCADE")
+        conn.commit()
+        schema_sql = SCHEMA_PG_PATH.read_text(encoding="utf-8")
+        conn.executescript(schema_sql)
+        _seed(conn)
+        conn.commit()
+        # Advance serial sequences past seeded explicit ids.
+        for tbl in (
+            "customers", "restaurants", "menu_items", "delivery_partners",
+            "orders", "order_items", "payments", "refunds", "deliveries",
+            "support_tickets", "coupons", "pending_actions", "action_audit_log",
+            "coupon_redemptions",
+        ):
+            try:
+                conn.execute(
+                    f"SELECT setval(pg_get_serial_sequence('{tbl}', 'id'), "
+                    f"COALESCE((SELECT MAX(id) FROM {tbl}), 1))"
+                )
+            except Exception:  # noqa: BLE001, S110
+                pass
+        conn.commit()
+        raw.close()
+        if verbose:
+            print("Postgres database rebuilt.")
+            print(
+                f"  rows: {sum(len(x) for x in (CUSTOMERS, RESTAURANTS, MENU_ITEMS, DELIVERY_PARTNERS, ORDERS, ORDER_ITEMS, PAYMENTS, REFUNDS, DELIVERIES, TICKETS, COUPONS))}"
+            )
+        return
+
+    db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     if db_path.exists():
         db_path.unlink()
@@ -568,26 +622,32 @@ def _seed(conn: sqlite3.Connection) -> None:
     )
     # Re-query to assign menu item ids (auto-incremented) to keep inserts simple.
     cur = conn.execute("SELECT id, restaurant_id, name FROM menu_items ORDER BY id")
-    name_to_id = {(r[1], r[2]): r[0] for r in cur.fetchall()}
+    rows = cur.fetchall()
+    name_to_id = {}
+    for r in rows:
+        if isinstance(r, dict):
+            name_to_id[(r["restaurant_id"], r["name"])] = r["id"]
+        else:
+            name_to_id[(r[1], r[2])] = r[0]
 
     conn.executemany(
         "INSERT INTO delivery_partners VALUES (?,?,?,?,?,?,?,?)",
         DELIVERY_PARTNERS,
     )
     conn.executemany(
-        "INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO orders (id, customer_id, restaurant_id, delivery_partner_id, "
+        "status, total_amount, delivery_fee, payment_method, placed_at, delivered_at, "
+        "delivery_address, rating, coupon_code) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         ORDERS,
     )
     # Resolve menu_item names in ORDER_ITEMS to their auto-incremented ids.
     resolved_items = []
     for order_id, menu_item_id_hint, qty, price in ORDER_ITEMS:
-        # menu_item_id_hint in the tuple is the human-friendly row number from
-        # MENU_ITEMS; map it to the actual autoincrement id.
         hint_row = MENU_ITEMS[menu_item_id_hint - 1]
         actual_id = name_to_id[(hint_row[0], hint_row[1])]
-        resolved_items.append((None, order_id, actual_id, qty, price))
+        resolved_items.append((order_id, actual_id, qty, price))
     conn.executemany(
-        "INSERT INTO order_items (id, order_id, menu_item_id, quantity, unit_price) VALUES (?,?,?,?,?)",
+        "INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price) VALUES (?,?,?,?)",
         resolved_items,
     )
     conn.executemany(
@@ -603,7 +663,8 @@ def _seed(conn: sqlite3.Connection) -> None:
         DELIVERIES,
     )
     conn.executemany(
-        "INSERT INTO support_tickets VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO support_tickets (id, customer_id, order_id, category, priority, "
+        "status, description, created_at, resolved_at) VALUES (?,?,?,?,?,?,?,?,?)",
         TICKETS,
     )
     conn.executemany(
@@ -620,8 +681,16 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_DB_PATH,
         help=f"Path to write the .db file (default: {DEFAULT_DB_PATH})",
     )
+    parser.add_argument(
+        "--postgres",
+        action="store_true",
+        help="Build/rebuild the hosted Postgres database from DATABASE_URL",
+    )
     args = parser.parse_args(argv)
-    build_database(args.path)
+    if args.postgres:
+        build_database(None, verbose=True)
+    else:
+        build_database(args.path)
     return 0
 
 
