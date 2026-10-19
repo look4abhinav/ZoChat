@@ -1,0 +1,6 @@
+- name: order_status_1
+  inputs: { question: "Where is my order 1?" }
+  expected_output: { is_related: true, category: order }
+- name: weather_unrelated
+  inputs: { question: "Will it rain tomorrow?" }
+  expected_output: { is_related: false, category: null }

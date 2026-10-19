@@ -4,10 +4,10 @@ An AI support agent being built to replace Zo's older rule-based chat bot.
 The agent answers customer queries about orders, deliveries, payments, refunds,
 coupons and support tickets by querying a local SQLite database through a
 two-agent pipeline built on [pydantic-ai](https://ai.pydantic.dev/) and backed
-by the `deepseek-v4-flash` model served through the Opencode Go gateway.
+by the `qwen/qwen3.8-27b` model served through the Groq cloud API.
 
 > Status: data layer + two-agent flow wired and tested. The default model
-> (`opencode-go/deepseek-v4-flash`) runs end-to-end once `OPENCODE_API_KEY` is provided.
+> (`groq/qwen/qwen3.8-27b`) runs end-to-end once `GROQ_API_KEY` is provided. Uses Postgres when `DATABASE_URL` is set.
 
 ---
 
@@ -47,20 +47,26 @@ agent or the database.
 ```
 src/zochat/
 ├── __init__.py          # `zochat` CLI: one-shot question or interactive REPL
-├── config.py            # .env loader + default Opencode Go model builder
+├── config.py            # .env loader + default Groq model builder
+├── errors.py            # typed error hierarchy
+├── validation.py        # boundary validation (pydantic)
+├── observability.py     # request IDs, metrics, logging
+├── session.py           # session state + persistence
+├── repl.py              # REPL controller
 ├── agent/
 │   ├── __init__.py      # public exports for the agent layer
 │   ├── chat.py          # orchestrator: runs classifier → support (or decline)
 │   ├── classifier.py    # primary gatekeeper agent
-│   ├── support.py       # secondary support agent + 12 DB tools
-│   └── models.py        # pydantic output models (QuestionClassification, etc.)
+│   ├── support.py       # secondary support agent + DB tools
+│   └── models.py        # pydantic output models
 ├── db/
-│   ├── __init__.py      # connect() helper, path constants
-│   ├── schema.sql       # DDL for all 11 tables + indexes
-│   ├── seed.py          # (re)creates ZoDB.db and inserts dummy data
-│   └── queries.py       # customer-facing query functions (agent tools)
-└── data/
-    └── ZoDB.db          # generated SQLite database (84 rows of dummy data)
+│   ├── __init__.py      # connect() helper (Postgres or SQLite)
+│   ├── schema.sql       # DDL for SQLite
+│   ├── schema_pg.sql    # DDL for Postgres
+│   ├── seed.py          # (re)creates the database and inserts dummy data
+│   ├── queries.py       # customer-facing query functions (agent tools)
+│   └── mutations.py     # two-phase mutation helpers
+└── data/                # (SQLite file is git-ignored; auto-created)
 tests/
 ├── test_customer_queries.py  # unittest suite for the query functions (28 tests)
 └── test_agent.py             # unittest suite for the two-agent flow (8 tests)
@@ -78,7 +84,7 @@ uv sync
 
 # 2. configure your Opencode Go credentials
 cp .env.example .env
-#   then edit .env and paste your OPENCODE_API_KEY
+#   then edit .env and paste your GROQ_API_KEY
 
 # 3. (re)build the database with dummy data
 uv run python -m zochat.db.seed
@@ -111,12 +117,14 @@ values, so CI and explicit `export` calls win.
 
 | Variable | Required | Description |
 |---|---|---|
-| `OPENCODE_API_KEY` | yes | API key for the Opencode Go provider (serves `deepseek-v4-flash`). |
-| `OPENCODE_BASE_URL` | no | OpenAI-compatible base URL. Falls back to `https://opencode.ai/zen/go/v1` when unset. |
-| `ZOCHAT_MODEL` | no | Override the pydantic-ai model string the CLI uses by default (e.g. `google-gla:gemini-2.0-flash`). When unset, the CLI defaults to `opencode-go/deepseek-v4-flash`. |
+| `GROQ_API_KEY` | yes | API key for the Groq cloud provider (serves `qwen/qwen3.8-27b`). |
+| `GROQ_BASE_URL` | no | OpenAI-compatible base URL. Falls back to the Groq SDK default (`https://api.groq.com`) when unset. |
+| `DATABASE_URL` | no | Postgres connection string (Neon). When unset, falls back to local SQLite. |
+| `POSTGRES_DATABASE_URL` | no | Alias for `DATABASE_URL`. |
+| `ZOCHAT_MODEL` | no | Override the pydantic-ai model string the CLI uses by default (e.g. `google-gla:gemini-2.0-flash`). When unset, the CLI defaults to `groq:qwen/qwen3.8-27b`. |
 
 `.env` is git-ignored; copy `.env.example` to start. The default model is built
-lazily by `zochat.config.get_opencode_model()` only when `chat()` is called
+lazily by `zochat.config.get_groq_model()` only when `chat()` is called
 without an explicit `model=`, so importing the package (and running the test
 suite) never requires the key.
 
@@ -191,7 +199,7 @@ ZOCHAT_MODEL=google-gla:gemini-2.0-flash uv run zochat
 ```
 
 If `--model` / `ZOCHAT_MODEL` are both unset the CLI falls back to the default
-Opencode Go `deepseek-v4-flash` model from `zochat.config`.
+Groq `qwen/qwen3.8-27b` model from `zochat.config`.
 
 ## Agent architecture
 
@@ -201,7 +209,7 @@ Each agent returns a typed pydantic model, parsed from the model's JSON
 output via pydantic-ai's [`PromptedOutput`](https://ai.pydantic.dev/output/)
 mode — the schema is injected into the system prompt and the model's free-text
 reply is parsed as JSON. This was chosen over the default tool-call output
-mode because it works with models (like `deepseek-v4-flash` via the Opencode Go
+mode because it works with models (like `qwen/qwen3.8-27b` via the Groq cloud
 gateway) that do not reliably emit structured-output tool calls; without it the
 agent would exhaust its output-retries and raise
 `UnexpectedModelBehavior: Exceeded maximum output retries`. Both agents also
@@ -218,7 +226,7 @@ set `retries=3` for resilience.
 
 - `chat(question, *, conn=None, model=None) -> ChatReply` — convenience entry
   point. Builds fresh classifier + support agents and runs the flow. When
-  `model is None`, uses `get_opencode_model()` (the Opencode Go `deepseek-v4-flash`
+  `model is None`, uses `get_groq_model()` (the Groq `qwen/qwen3.8-27b`
   default). When `conn is None`, opens (and closes) its own SQLite connection.
 - `run(classifier, support, question, *, conn=None) -> ChatReply` — testable
   core that accepts pre-built agents. Tests inject `TestModel`-backed agents
@@ -237,7 +245,7 @@ The test suite has two halves, both using the standard-library `unittest`
 framework (no extra test deps to install) and run via `pytest`:
 
 ```bash
-uv run pytest -q              # all 36 tests, quiet
+uv run pytest -q              # all 55 tests, quiet
 uv run pytest -v             # verbose (shows each question / case)
 uv run pytest tests/test_agent.py          # agent flow only
 uv run pytest tests/test_customer_queries.py  # query functions only
@@ -382,3 +390,31 @@ uv run python -m zochat.db.seed --path /tmp/ZoDB.db
 
 Add new dummy rows by editing the lists at the top of
 [`src/zochat/db/seed.py`](src/zochat/db/seed.py) and re-running.
+## New in this iteration
+
+### REPL commands
+
+| Command | Effect |
+|---|---|
+| `/help` | List commands |
+| `/history` | Print turns with timestamps |
+| `/reset` | Clear history + identity (keep session) |
+| `/new` | Start a brand-new session |
+| `/customer <phone\|id>` | Set identity explicitly |
+| `/session` | Show session id, customer, last order/ticket |
+| `/last` | Reprint last bot reply |
+| `/quit`, `/exit`, `/q` | Save session and exit |
+
+Flags: `--session <id>`, `--resume <id>`, `--no-persist`.
+
+### Mutations (two-phase)
+
+The support agent can propose and execute actions with explicit consent:
+cancel order, create/resolve ticket, apply coupon, rate order. Every action is
+previewed with a single-use token; `execute_pending_action(token)` performs it
+transactionally with an audit row in `action_audit_log`.
+
+### Streaming
+
+`chat_stream()` yields `ChatStreamEvent`s (classification, answer deltas,
+final reply) for incremental rendering.

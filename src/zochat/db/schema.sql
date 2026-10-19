@@ -80,6 +80,8 @@ CREATE TABLE orders (
     delivery_address    TEXT    NOT NULL,
     rating              INTEGER,
     coupon_code         TEXT,
+    cancelled_at        TEXT,
+    cancelled_reason    TEXT,
     FOREIGN KEY (customer_id)         REFERENCES customers(id),
     FOREIGN KEY (restaurant_id)       REFERENCES restaurants(id),
     FOREIGN KEY (delivery_partner_id) REFERENCES delivery_partners(id)
@@ -163,6 +165,7 @@ CREATE TABLE support_tickets (
     description     TEXT    NOT NULL,
     created_at      TEXT    NOT NULL,
     resolved_at     TEXT,
+    resolution_note TEXT,
     FOREIGN KEY (customer_id) REFERENCES customers(id),
     FOREIGN KEY (order_id)   REFERENCES orders(id)
 );
@@ -183,6 +186,55 @@ CREATE TABLE coupons (
     is_active       INTEGER NOT NULL DEFAULT 1
 );
 
+
+-- ---------------------------------------------------------------------------
+-- Pending actions (two-phase confirmation tokens for mutations)
+-- ---------------------------------------------------------------------------
+CREATE TABLE pending_actions (
+    id              TEXT    PRIMARY KEY,
+    customer_id     INTEGER,
+    action          TEXT    NOT NULL,
+    target_type     TEXT    NOT NULL,
+    target_id       INTEGER,
+    payload_json    TEXT    NOT NULL,
+    created_at      TEXT    NOT NULL,
+    expires_at      TEXT    NOT NULL,
+    consumed_at     TEXT,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- ---------------------------------------------------------------------------
+-- Action audit log
+-- ---------------------------------------------------------------------------
+CREATE TABLE action_audit_log (
+    id              INTEGER PRIMARY KEY,
+    request_id      TEXT,
+    customer_id     INTEGER,
+    action          TEXT    NOT NULL,
+    target_type     TEXT    NOT NULL,
+    target_id       INTEGER,
+    status          TEXT    NOT NULL,
+    before_json     TEXT,
+    after_json      TEXT,
+    error_code      TEXT,
+    created_at      TEXT    NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- ---------------------------------------------------------------------------
+-- Coupon redemptions
+-- ---------------------------------------------------------------------------
+CREATE TABLE coupon_redemptions (
+    id              INTEGER PRIMARY KEY,
+    order_id        INTEGER NOT NULL UNIQUE,
+    coupon_code     TEXT    NOT NULL,
+    discount_amount REAL    NOT NULL,
+    original_total  REAL    NOT NULL,
+    final_total     REAL    NOT NULL,
+    applied_at      TEXT    NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
 -- ---------------------------------------------------------------------------
 -- Helpful indexes for the chatbot's common lookups
 -- ---------------------------------------------------------------------------
@@ -195,3 +247,6 @@ CREATE INDEX idx_deliveries_order       ON deliveries(order_id);
 CREATE INDEX idx_tickets_customer       ON support_tickets(customer_id);
 CREATE INDEX idx_tickets_status         ON support_tickets(status);
 CREATE INDEX idx_menu_items_restaurant  ON menu_items(restaurant_id);
+CREATE INDEX idx_pending_actions_customer ON pending_actions(customer_id);
+CREATE INDEX idx_audit_request          ON action_audit_log(request_id);
+CREATE INDEX idx_audit_customer         ON action_audit_log(customer_id);

@@ -1,0 +1,3 @@
+- name: order_1_tracking
+  inputs: { question: "Where is my order 1?" }
+  metadata: { expected_tools: [where_is_my_order], expected_substrings: ["delivered"] }

@@ -228,17 +228,90 @@ def can_cancel_order(conn: sqlite3.Connection, order_id: int) -> tuple[bool, str
     return (False, f"order is already {status} and cannot be cancelled")
 
 
+def order_overview(conn: sqlite3.Connection, order_id: int) -> dict[str, Any] | None:
+    """Composite: order header + items + payment + refunds + delivery in one call."""
+    order = _row_to_dict(
+        conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    )
+    if order is None:
+        return None
+    items = order_items_detail(conn, order_id)
+    payment = payment_status(conn, order_id)
+    refunds = refund_status(conn, order_id)
+    delivery = where_is_my_order(conn, order_id)
+    return {
+        "order": order,
+        "items": items,
+        "payment": payment,
+        "refunds": refunds,
+        "delivery": delivery,
+    }
+
+
+def customer_overview(
+    conn: sqlite3.Connection, customer_id: int, order_limit: int = 5
+) -> dict[str, Any] | None:
+    """Composite: profile + recent orders + open tickets in one call."""
+    profile = customer_profile(conn, customer_id)
+    if profile is None:
+        return None
+    orders = recent_orders(conn, customer_id, limit=order_limit)
+    tickets = my_support_tickets(conn, customer_id)
+    return {"profile": profile, "recent_orders": orders, "tickets": tickets}
+
+
+def validate_coupon(
+    conn: sqlite3.Connection, code: str, cart_total: float, now: str | None = None
+) -> dict[str, Any]:
+    """Validate a coupon against a cart total and compute the discount."""
+    now = now or datetime.now().isoformat(sep=" ")
+    row = conn.execute("SELECT * FROM coupons WHERE code = ?", (code,)).fetchone()
+    if row is None:
+        return {"valid": False, "code": code, "reason": "coupon not found"}
+    c = dict(row)
+    if not c["is_active"]:
+        return {"valid": False, "code": code, "reason": "coupon is inactive"}
+    if c["expires_on"] <= now:
+        return {"valid": False, "code": code, "reason": "coupon has expired"}
+    if cart_total < c["min_order_value"]:
+        return {
+            "valid": False,
+            "code": code,
+            "reason": f"cart total below minimum of {c['min_order_value']}",
+        }
+    if c["discount_type"] == "percentage":
+        disc = cart_total * c["discount_value"] / 100.0
+        if c["max_discount"] is not None:
+            disc = min(disc, c["max_discount"])
+    else:
+        disc = float(c["discount_value"])
+    disc = round(disc, 2)
+    final = round(cart_total - disc, 2)
+    return {
+        "valid": True,
+        "code": code,
+        "discount_type": c["discount_type"],
+        "discount_value": c["discount_value"],
+        "discount_amount": disc,
+        "final_total": final,
+        "reason": None,
+    }
+
+
 __all__ = [
     "active_coupons",
     "can_cancel_order",
+    "customer_overview",
     "customer_profile",
     "find_customer_by_phone",
     "menu_for_restaurant",
     "my_support_tickets",
     "order_items_detail",
+    "order_overview",
     "payment_status",
     "recent_orders",
     "refund_status",
     "restaurants_in_city",
+    "validate_coupon",
     "where_is_my_order",
 ]

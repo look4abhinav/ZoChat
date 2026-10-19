@@ -5,9 +5,10 @@ a secondary *support* agent answers in-scope questions using the SQLite tools
 in :mod:`zochat.db.queries`. Out-of-scope questions are declined.
 """
 
-from zochat.agent.chat import DECLINE_REPLY, ChatReply, chat, run
+from zochat.agent.chat import DECLINE_REPLY, ChatReply, chat, chat_stream, run
 from zochat.agent.classifier import build_classifier_agent
 from zochat.agent.models import (
+    ChatStreamEvent,
     QuestionCategory,
     QuestionClassification,
     SupportAnswer,
@@ -17,11 +18,13 @@ from zochat.agent.support import build_support_agent
 __all__ = [
     "DECLINE_REPLY",
     "ChatReply",
+    "ChatStreamEvent",
     "QuestionCategory",
     "QuestionClassification",
     "SupportAnswer",
     "build_classifier_agent",
     "build_support_agent",
     "chat",
+    "chat_stream",
     "run",
 ]
